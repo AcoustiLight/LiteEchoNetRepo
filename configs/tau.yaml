@@ -1,4 +1,44 @@
+seed: 42
+
 dataset:
   name: tau
+  num_classes: 10
 
-# Placeholder: populate from the original TAU experiment code.
+  # TAU meta/split CSVs carry only the string scene_label (no numeric id),
+  # so THIS list defines the label -> index mapping. It MUST match the class
+  # order used when the TAU checkpoint was trained, or every prediction maps
+  # to the wrong class and the accuracy will look random. Default is the
+  # alphabetical order used by sklearn LabelEncoder / sorted(); change it if
+  # your training code used a different order.
+  class_order:
+    - airport
+    - bus
+    - metro
+    - metro_station
+    - park
+    - public_square
+    - shopping_mall
+    - street_pedestrian
+    - street_traffic
+    - tram
+
+  # Tab- or comma-separated CSV listing the development-test clips, with
+  # 'filename' and 'scene_label' columns. Point this at the exact split your
+  # paper reports on (e.g. the DCASE evaluation_setup test/evaluate file).
+  test_list: evaluation_setup/fold1_evaluate.csv
+
+audio:
+  sample_rate: 32000
+  clip_duration_seconds: 1
+
+spectrogram:
+  n_fft: 4096
+  win_length: 4096
+  hop_length: 502
+  n_mels: 256
+  power: 2.0
+  top_db: 80.0
+  center: true
+  pad_mode: reflect
+  mel_scale: htk
+  emulate_float16_cache: true
