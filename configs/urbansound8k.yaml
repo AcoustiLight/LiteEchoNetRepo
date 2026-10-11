@@ -1,4 +1,24 @@
+seed: 42
+
 dataset:
   name: urbansound8k
+  num_classes: 10
+  num_folds: 10
+  folds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  expected_samples: 8732
 
-# Placeholder: populate from the original UrbanSound8K experiment code.
+audio:
+  sample_rate: 32000
+  clip_duration_seconds: 4
+
+spectrogram:
+  n_fft: 4096
+  win_length: 4096
+  hop_length: 502
+  n_mels: 256
+  power: 2.0
+  top_db: 80.0
+  center: true
+  pad_mode: reflect
+  mel_scale: htk
+  emulate_float16_cache: true
