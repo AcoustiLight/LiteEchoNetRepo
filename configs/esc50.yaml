@@ -1,0 +1,25 @@
+seed: 42
+
+dataset:
+  name: esc50
+  num_classes: 50
+  num_folds: 5
+  folds: [1, 2, 3, 4, 5]
+  expected_samples: 2000
+  samples_per_fold: 400
+
+audio:
+  sample_rate: 32000
+  clip_duration_seconds: 5
+
+spectrogram:
+  n_fft: 4096
+  win_length: 4096
+  hop_length: 502
+  n_mels: 256
+  power: 2.0
+  top_db: 80.0
+  center: true
+  pad_mode: reflect
+  mel_scale: htk
+  emulate_float16_cache: true
