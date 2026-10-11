@@ -10,7 +10,7 @@ Official PyTorch implementation and released checkpoints for **"LightEchoNet: St
 **Project page:** https://acoustilight.github.io/LightEchoNet
 
 <p align="center">
-  <img src="assets/overview.png" width="100%" alt="Structurally aligned inner–outer knowledge distillation pipeline">
+  <img src="assets/overview.svg" width="100%" alt="Structurally aligned inner–outer knowledge distillation pipeline">
 </p>
 
 
