@@ -126,14 +126,3 @@ Scaling the student to ~350K parameters (`LightEchoNet-350K`) raises ESC-50 to *
 
 The dataset loaders follow the official dataset conventions and the paper's preprocessing. ESC-50 and UrbanSound8K label mappings are taken directly from the dataset CSVs; the TAU mapping is set by `class_order` in the config. Verify one fold/model against a known accuracy after setting your paths. Training code (inner/outer teachers, distillation losses, augmentations) is not part of this checkpoint-evaluation release.
 
-
-## 📝 Citation
-
-```bibtex
-@inproceedings{ramezanee2026lightechonet,
-  title     = {LightEchoNet: Structurally Aligned Inner--Outer Knowledge Distillation for Lightweight Audio Classification},
-  author    = {Ramezanee, Mohamad Mahdee and Sharifi, Hossein and Raoufi, Behnam and Tavakoli, Reza and Ahmadi, Siavash and Khalaj, Babak and Bagheri Shouraki, Saeed and Sabokrou, Mohammad and Diba, Ali},
-  booktitle = {TODO: fill in venue},
-  year      = {2026}
-}
-```
