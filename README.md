@@ -1,16 +1,16 @@
 # LightEchoNet: Structurally Aligned Inner–Outer Knowledge Distillation for Lightweight Audio Classification
 
-Official PyTorch implementation of **"LightEchoNet: Structurally Aligned Inner–Outer Knowledge Distillation for Lightweight Audio Classification."**
+Official PyTorch implementation and released checkpoints for **"LightEchoNet: Structurally Aligned Inner–Outer Knowledge Distillation for Lightweight Audio Classification."**
 
-> **Authors:** Mohamad Mahdee Ramezanee\*, Hossein Sharifi\*, Behnam Raoufi\*, Reza Tavakoli, Siavash Ahmadi†, Babak Khalaj, Saeed Bagheri Shouraki, Mohammad Sabokrou, Ali Diba†  
+> **Authors:** Mohamad Mahdee Ramezanee\*, Hossein Sharifi\*, Behnam Raoufi\*, Reza Tavakoli, Siavash Ahmadi†, Babak Khalaj, Saeed Bagheri Shouraki, Mohammad Sabokrou, Ali Diba†
 > \* Equal contribution. † Corresponding authors.
 >
-> ¹ Sharif University of Technology, Iran · ² Virginia Tech, USA · ³ New Uzbekistan University, Uzbekistan · ⁴ Okinawa Institute of Science and Technology, Japan · ⁵ QCRI, Hamad Bin Khalifa University, Qatar
+> Sharif University of Technology · Virginia Tech · New Uzbekistan University · Okinawa Institute of Science and Technology · QCRI, Hamad Bin Khalifa University
 
-**Project page:** [acoustilight.github.io/LightEchoNet](https://acoustilight.github.io/LightEchoNet) · **Paper:** [`LightEchoNet.pdf`](LightEchoNet.pdf)
+**Project page:** https://acoustilight.github.io/LightEchoNet
 
 <p align="center">
-  <img src="assets/overview.png" width="100%" alt="Structurally aligned inner teacher, compact student, and the inner–outer distillation pipeline">
+  <img src="assets/overview.png" width="100%" alt="Structurally aligned inner–outer knowledge distillation pipeline">
 </p>
 
 
@@ -21,221 +21,111 @@ Official PyTorch implementation of **"LightEchoNet: Structurally Aligned Inner�
 
 ## 🧩 Method
 
-LightEchoNet co-designs a compact CNN **student** with a **structurally aligned inner teacher**, formed by replacing nine of the student's 3×3 convolutions with FusionConv blocks. Because both networks share stage layout and feature dimensions, intermediate features can be matched directly — with no projection modules. Knowledge is then transferred through a three-phase pipeline, after which all teachers are discarded, leaving the student's inference cost unchanged.
+LightEchoNet co-designs a compact CNN **student** with a structurally aligned **Inner Teacher**, then distills from an **Outer Teacher** ensemble. Nine aligned teacher–student (T–S) block pairs are distributed through the network so intermediate features can be matched directly, with no extra projection modules. Training uses three phases:
 
-- **Phase I — Inner-Teacher Training:** Train the structurally aligned inner teacher (Light Echo blocks + FusionConv, Residual Normalization, and an attention-GAP head), pretrained on AudioSet and CochlScene, then fine-tuned on the target dataset. ~140K parameters.
-- **Phase II — Inner Knowledge Distillation:** Train the ~77%-smaller student with (i) cross-entropy on true labels, (ii) temperature-scaled KL divergence against the inner-teacher logits, and (iii) normalized Huber feature matching at `|S| = 4` aligned layers. Settings: `α = 0.6`, `β = 0.8`, `T = 5`.
-- **Phase III — Outer Knowledge Distillation:** Introduce the outer-teacher ensemble (LEN-v1, LEN-v2, CP-Mobile, CP-ResNet, HTS-AT) and raise `T = 8`, `α = 0.95` to emphasize output-level guidance that refines the already-strong student.
+- **Phase I — Inner Teacher:** train the structurally aligned inner teacher, whose FusionConv blocks mirror the student's `3×3` convolutions.
+- **Phase II — Student (inner KD):** train the student with cross-entropy, temperature-scaled KL on inner-teacher logits, and a normalized Huber feature-matching loss (`α = 0.6`, `β = 0.8`, `T = 5`).
+- **Phase III — Student (outer KD):** emphasize the outer-teacher ensemble with `T = 8`, `α = 0.95`.
 
-Selected features are ℓ₂-normalized to remove scale differences before matching:
-
-```math
-\widehat{f}^{(l)}_s = \frac{f^{(l)}_s}{\lVert f^{(l)}_s \rVert_2 + \varepsilon}, \qquad
-\widehat{f}^{(l)}_i = \frac{f^{(l)}_i}{\lVert f^{(l)}_i \rVert_2 + \varepsilon}.
-```
-
-The complete training objective combines label, logit, and feature supervision:
-
-```math
-\mathcal{L} = (1-\alpha)\,\mathcal{L}_{\mathrm{CE}}(z_s, y) + \alpha T^2\,\mathcal{L}_{\mathrm{KL}}\!\left(p_t^T \,\Vert\, p_s^T\right) + \beta\,\mathcal{L}_{\mathrm{feat}},
-```
-
-where `L_feat` is an element-wise Huber loss (`δ = 1`) over the `|S| = 4` aligned feature maps, with stop-gradient on the teacher side.
-
-
-## 📈 Results
-
-Accuracy with the full inner–outer pipeline, together with the student's deployment complexity (FP16). ESC-50 and UrbanSound8K are reported on the official folds.
-
-| Dataset | Accuracy (%) | Student Params | MMACs | Size (FP16) |
-|---|---|---|---|---|
-| TAU Urban Acoustic Scenes 2022 Mobile (official 25% split) | **60.24** | 31.2K | 28.6 | 62.5 kB |
-| ESC-50 | **93.4** | 36.4K | 143.2 | 72.8 kB |
-| UrbanSound8K | **94.43** | 31.2K | 114.5 | 62.5 kB |
-
-> MMACs/size vary with clip length (1 s for TAU, 4 s for UrbanSound8K, 5 s for ESC-50). Scaling the student and inner teacher to a **350K** variant further raises accuracy to **95.8%** on ESC-50 and **96.25%** on UrbanSound8K.
+All teachers are discarded after training, so inference cost is unchanged. **This repository releases the trained students and the evaluation code**; the student is the only network required to reproduce the reported accuracies.
 
 
 ## ⚙️ Setup
 
-Clone the repository:
-
 ```bash
-git clone https://github.com/<user>/LightEchoNet.git
+git clone https://github.com/<your-org>/LightEchoNet.git
 cd LightEchoNet
-```
 
-Create a Python environment:
-
-```bash
 conda create -n lightechonet python=3.9
 conda activate lightechonet
+
+# Adjust the CUDA build to your system.
+conda install pytorch==2.1.0 torchaudio==2.1.0 pytorch-cuda=11.8 -c pytorch -c nvidia
+pip install -r requirements.txt
 ```
 
-Install PyTorch and the remaining dependencies:
-
-```bash
-conda install pytorch torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
-pip install -r requirements.txt   # numpy pandas pyyaml tqdm
-```
-
-Adjust the PyTorch/CUDA build to match your system. The repository uses `torchaudio` for waveform loading and resampling, so ensure your `torchaudio` backend can decode the dataset's audio format (e.g. an FFmpeg or SoX backend for `.wav`). Evaluation runs on CPU or a single GPU; the original experiments used an NVIDIA RTX 3090.
+The pipeline uses `torchaudio` for waveform loading and resampling; make sure your `torchaudio` backend can decode the dataset audio (e.g. FFmpeg).
 
 
-## 🤖 Models
+## 🤖 Model
 
-The distillation framework involves three model roles. Only the student is needed at inference; the teachers are used during training and then discarded.
-
-| Role | Module | Status |
-|---|---|---|
-| **Student** — `StudentLightEchoNet` (LE blocks, ResNorm, learnable AttnGAP pooling) | [`models/student.py`](models/student.py), [`models/blocks.py`](models/blocks.py) | ✅ Implemented |
-| **Inner teacher** — structurally aligned, FusionConv-based | [`models/inner_teacher.py`](models/inner_teacher.py) | 🚧 Placeholder |
-| **Outer teachers** — LEN-v1, LEN-v2, CP-Mobile, CP-ResNet, HTS-AT | [`models/outer_teachers.py`](models/outer_teachers.py) | 🚧 Placeholder |
-
-### Checkpoints
-
-Pretrained student checkpoints are organized per dataset and per fold:
-
-```text
-checkpoints/
-├── esc50/          # fold1.ESC50_93.xx.pth ... fold5.ESC50_xx.xx.pth
-├── urbansound8k/
-└── tau/
-```
-
-The ESC-50 evaluator accepts either the accuracy-annotated naming `fold<N>.ESC50_<acc>.pth` or the simple `fold<N>.pth`, for `N ∈ {1,…,5}`. When the accuracy is encoded in the filename, the evaluator reports the measured-vs-filename difference as a sanity check. Checkpoints are raw tensor-only `state_dict` files loaded with `weights_only=True`.
+The released student (`models/student.py`) is a compact CNN: a two-layer stem, three stages of Light Echo (LE) blocks with Residual Normalization, an attention-based pooling head, and a linear classifier — about **31.2K parameters** for a one-second input. Checkpoints are raw tensor-only state dicts loaded with `strict=True`, so the architecture must not be modified.
 
 
 ## 📁 Data Preparation
 
-LightEchoNet is evaluated on three public audio-classification benchmarks. Set the dataset location with `--data-root` (ESC-50) or the corresponding config field.
+| Dataset | Status | Classes | Protocol |
+|---|---|---|---|
+| [ESC-50](https://github.com/karolpiczak/ESC-50) | ✅ Supported | 50 | Official 5-fold cross-validation |
+| [UrbanSound8K](https://urbansounddataset.weebly.com/urbansound8k.html) | 🚧 Checkpoints released; loader coming | 10 | Official 10-fold cross-validation |
+| [TAU Urban Acoustic Scenes 2022 Mobile](https://zenodo.org/record/6337421) | 🚧 Coming | 10 | Official 25% dev-train split |
 
-| Dataset | Classes | Clip length | Config | Status |
-|---|---|---|---|---|
-| [ESC-50](https://github.com/karolpiczak/ESC-50) | 50 | 5 s | [`configs/esc50.yaml`](configs/esc50.yaml) | ✅ Implemented |
-| [UrbanSound8K](https://urbansounddataset.weebly.com/urbansound8k.html) | 10 | ≤ 4 s | [`configs/urbansound8k.yaml`](configs/urbansound8k.yaml) | 🚧 Placeholder |
-| [TAU Urban Acoustic Scenes 2022 Mobile](https://zenodo.org/record/6337421) | 10 | 1 s | [`configs/tau.yaml`](configs/tau.yaml) | 🚧 Placeholder |
+All audio is converted to mono and resampled to **32 kHz**. Log-Mel features use FFT size **4096**, hop length **502**, **256** mel bands, power **2.0**, and an **80 dB** dynamic range (see `configs/esc50.yaml`).
 
 ### ESC-50 layout
 
-The ESC-50 loader auto-discovers `esc50.csv` and the audio directory. The standard release layout works out of the box:
+Point `--data-root` at a directory containing `esc50.csv` (any of the standard locations is auto-detected) and the `audio/` folder:
 
 ```text
-/path/to/ESC-50-master/
-├── meta/
-│   └── esc50.csv
-└── audio/
-    └── *.wav
+/path/to/ESC-50/
+├── meta/esc50.csv
+└── audio/*.wav
 ```
 
-The loader strictly validates the metadata (2000 clips, folds 1–5 with 400 each, targets 0–49, one-to-one target↔category mapping, no duplicate filenames) and resolves every WAV path before evaluation.
-
-### Audio preprocessing
-
-All signals are converted to mono and resampled to 32 kHz, then clipped or zero-padded to the dataset's clip length. Log-Mel spectrograms follow the paper's settings:
-
-| Parameter | Value |
-|---|---|
-| Sample rate | 32 kHz |
-| FFT / window size | 4096 |
-| Hop length | 502 |
-| Mel bins | 256 |
-| Power | 2.0 |
-| Amplitude→dB top_dB | 80.0 |
-| Mel scale | HTK |
-
-> The ESC-50 transform reproduces the original training pipeline's **float16 Mel cache** by quantizing each log-Mel to `float16` and back to `float32` before the model (`emulate_float16_cache: true`).
+The metadata loader strictly validates the 2000 clips / 5 folds / 50 classes before running.
 
 
 ## 🚀 Evaluation
 
-ESC-50 evaluation is fully implemented. It runs all five official folds, applies the matching checkpoint per fold, and reports per-fold and aggregate accuracy:
+Place the per-fold checkpoints under `checkpoints/esc50/`, named either `fold<N>.pth` or `fold<N>.ESC50_<accuracy>.pth` (the second form lets the evaluator report the difference from the filename accuracy):
+
+```text
+checkpoints/esc50/
+├── fold1.ESC50_93.50.pth
+├── fold2.pth
+├── ...
+└── fold5.pth
+```
+
+Run 5-fold evaluation:
 
 ```bash
 python evaluate.py \
   --config configs/esc50.yaml \
-  --data-root /path/to/ESC-50-master \
-  --checkpoints-dir checkpoints/esc50 \
-  --batch-size 64 \
-  --workers 4
+  --data-root /path/to/ESC-50 \
+  --checkpoints-dir checkpoints/esc50
 ```
 
-On CUDA the evaluator uses mixed precision (FP16 autocast) and a default batch size of 64; on CPU it defaults to a batch size of 4. The random seed is fixed from the config (`seed: 42`) for reproducibility.
+The script prints per-fold accuracy plus the arithmetic mean, population/sample variance and standard deviation, and the pooled accuracy across all folds.
 
 
-## 🏋️ Training
+## 📊 Results
 
-The three-phase pipeline is scaffolded as separate entry points:
+Student accuracy on the official folds (from the paper):
 
-```bash
-python train_inner_teacher.py   # Phase I  — inner-teacher training
-python train_inner_kd.py        # Phase II — inner knowledge distillation (feature + logit)
-python train_outer_kd.py        # Phase III — outer knowledge distillation (ensemble refinement)
-```
+| Dataset | Accuracy (%) | Params | MMACs | Size (float16) |
+|---|---|---|---|---|
+| TAU (25% dev-train) | 60.2 | 31.2K | 28.6 | 62.5 kB |
+| ESC-50 | 93.4 ± 0.9 | 36K | — | — |
+| UrbanSound8K | 94.4 ± 1.9 | 31.2K | — | — |
 
-> **Note:** The training stages, the inner/outer teachers, the distillation losses ([`losses.py`](losses.py)), and the augmentation stack ([`augmentations.py`](augmentations.py)) are currently placeholders and raise `NotImplementedError`. See **Repository Status** below.
-
-
-## 📊 Outputs
-
-The ESC-50 evaluator prints a per-fold table followed by a summary across the five folds:
-
-```text
-Per-fold results
- fold  model_file           correct  samples  accuracy_percent  ...
-
-Summary across 5 folds
-Arithmetic mean accuracy:       ...
-Population variance (ddof=0):   ...
-Sample variance (ddof=1):       ...
-Population standard deviation:  ...
-Sample standard deviation:      ...
-Pooled accuracy:                ... (correct/total)
-```
-
-When checkpoints carry accuracy-annotated filenames, each row additionally reports the measured accuracy's deviation from the filename value.
+Scaling the student to ~350K parameters (`LightEchoNet-350K`) raises ESC-50 to **95.8 ± 0.83%** and UrbanSound8K to **96.25 ± 1.72%**.
 
 
-## ⚙️ Main Paper Settings
+## 🛠️ Status
 
-| Component | Setting |
-|---|---|
-| Optimizer | Adam, cosine annealing, fixed seed |
-| Initial learning rate / batch size | `1e-3` / 64 |
-| Phase II (inner KD) | `α = 0.6`, `β = 0.8`, `T = 5` |
-| Phase III (outer KD) | `α = 0.95`, `T = 8` |
-| Feature-loss layers / loss | `|S| = 4` / Huber (`δ = 1`), ℓ₂-normalized |
-| Mel front end | 32 kHz, FFT 4096, hop 502, 256 bins, power 2.0, 80 dB |
-| Outer-teacher ensemble | LEN-v1, LEN-v2, CP-Mobile, CP-ResNet, HTS-AT |
-| Training hardware | NVIDIA RTX 3090 (24 GB) |
-| Deployment precision | FP16 (≈½ model size, <0.1 pp accuracy loss) |
-
-All experiment settings are exposed in the YAML files under [`configs/`](configs/).
-
-
-## 📦 Repository Status
-
-This repository is released incrementally. The ESC-50 evaluation path is complete and reproduces the reported fold accuracies from released checkpoints. Other components are being ported from the original experiment code.
-
-| Component | Status |
-|---|---|
-| ESC-50 dataset, transform, student, evaluation | ✅ Implemented |
-| UrbanSound8K / TAU datasets + configs | 🚧 Placeholder |
-| Inner & outer teachers | 🚧 Placeholder |
-| Distillation losses, augmentations | 🚧 Placeholder |
-| Phase I / II / III training | 🚧 Placeholder |
+- **ESC-50 evaluation:** fully supported.
+- **UrbanSound8K:** checkpoints are released; the dataset loader and config are being added.
+- **TAU + training code (inner/outer teachers, distillation losses, augmentations):** planned.
 
 
 ## 📝 Citation
-
-If you find our code or method useful in your research, please consider citing our paper:
 
 ```bibtex
 @inproceedings{ramezanee2026lightechonet,
   title     = {LightEchoNet: Structurally Aligned Inner--Outer Knowledge Distillation for Lightweight Audio Classification},
   author    = {Ramezanee, Mohamad Mahdee and Sharifi, Hossein and Raoufi, Behnam and Tavakoli, Reza and Ahmadi, Siavash and Khalaj, Babak and Bagheri Shouraki, Saeed and Sabokrou, Mohammad and Diba, Ali},
-  booktitle = {TODO: venue},
-  year      = {TODO},
-  note      = {Project page: https://acoustilight.github.io/LightEchoNet}
+  booktitle = {TODO: fill in venue},
+  year      = {2026}
 }
 ```
